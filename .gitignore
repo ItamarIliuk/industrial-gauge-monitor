@@ -1,0 +1,66 @@
+# =============================================================
+# Credenciais e Chaves GCP / IA — NUNCA commitar chaves
+# A chave de Service Account deve ficar em:
+# %USERPROFILE%\.config\gcp\ (Windows) ou ~/.config/gcp/ (Linux/Mac)
+# =============================================================
+*-sa-key.json
+*.json.key
+service_account*.json
+*credential*.json
+*secret*.json
+client_secret*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.pkcs12
+
+# Python caches e build files
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Variáveis de ambiente e segredos locais
+.env
+.env*
+!.env.example
+
+# Ambientes virtuais Python
+venv/
+.venv/
+env/
+ENV/
+
+# Streamlit config/cache
+.streamlit/
+
+# Imagens de debug e captura (geradas em runtime, não versionadas)
+debug_captures/
+
+# Imagens de teste locais (arquivos pesados e/ou capturas de bancada)
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+!docs/**/*.jpg
+
+# Logs e dados temporários
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific
+.DS_Store
+Thumbs.db

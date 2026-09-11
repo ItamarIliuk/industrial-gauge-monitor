@@ -1,0 +1,6 @@
+flask
+google-cloud-bigquery
+google-cloud-firestore
+gunicorn
+functions-framework
+db-dtypes

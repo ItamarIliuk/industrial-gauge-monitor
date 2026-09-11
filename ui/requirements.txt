@@ -1,0 +1,5 @@
+streamlit
+plotly
+google-cloud-firestore
+pytz
+streamlit-autorefresh

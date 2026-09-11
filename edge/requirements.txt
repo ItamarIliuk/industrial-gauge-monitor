@@ -1,0 +1,5 @@
+opencv-python-headless
+google-genai
+google-cloud-pubsub
+python-dotenv
+numpy
