@@ -64,3 +64,6 @@ debug_captures/
 # OS-specific
 .DS_Store
 Thumbs.db
+
+# Resultados de benchmark (gerados em runtime)
+bench/results*.csv

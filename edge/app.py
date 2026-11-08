@@ -6,9 +6,10 @@ import logging
 import datetime
 import numpy as np
 from google.cloud import pubsub_v1
-from google import genai
-from google.genai import types
 from pydantic import BaseModel, Field
+
+# Backend de inferência: "gemini" (Vertex AI, nuvem) ou "cosmos" (NVIDIA Cosmos3 NIM local + geometria).
+GAUGE_BACKEND = os.getenv("GAUGE_BACKEND", "gemini").lower()
 
 # Configuração de Logging para ambiente industrial
 logging.basicConfig(
@@ -59,13 +60,24 @@ class GaugeAgent:
         if not self.topic_id:
             raise EnvironmentError("Variável de ambiente TOPIC_ID não definida.")
 
-        # Inicialização Novo SDK Google GenAI (MaaS)
-        self.client = genai.Client(
-            vertexai=True,
-            project=self.project_id,
-            location=self.location
-        )
-        
+        self.backend = GAUGE_BACKEND
+        if self.backend not in ("gemini", "cosmos"):
+            raise EnvironmentError(f"GAUGE_BACKEND inválido: '{self.backend}' (use 'gemini' ou 'cosmos').")
+
+        if self.backend == "gemini":
+            # Inicialização Novo SDK Google GenAI (MaaS)
+            from google import genai
+            self.client = genai.Client(
+                vertexai=True,
+                project=self.project_id,
+                location=self.location
+            )
+        else:
+            # NVIDIA Cosmos3 NIM local: a imagem não sai do dispositivo de borda
+            import cosmos_backend
+            self.client = cosmos_backend.CosmosClient()
+            logger.info(f"Backend Cosmos3 NIM em {self.client.url}")
+
         # Modelo travado para evitar desvios comportamentais (Model Drift)
         self.model_id = os.getenv("MODEL_ID", "gemini-3.6-flash")
         #self.model_id = os.getenv("MODEL_ID", "gemini-3.1-pro-preview")
@@ -251,7 +263,16 @@ class GaugeAgent:
         return buffer.tobytes()
 
     def process_inference(self, image_bytes):
-        """Envia imagem para o modelo multimodal via MaaS API com esquema estruturado."""
+        """Envia imagem para o modelo multimodal (Gemini via MaaS API ou Cosmos3 local) com esquema estruturado."""
+        if self.backend == "cosmos":
+            import cosmos_backend
+            ai_json = GaugeReading.model_validate(
+                cosmos_backend.read_gauge(image_bytes, client=self.client)
+            ).model_dump()
+            logger.info(f"Retorno Cosmos3 (Validado via Pydantic): {json.dumps(ai_json, indent=2, ensure_ascii=False)}")
+            return ai_json
+
+        from google.genai import types
         image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
         
         response = self.client.models.generate_content(
