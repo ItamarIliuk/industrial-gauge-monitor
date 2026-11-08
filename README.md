@@ -71,3 +71,28 @@ Se preferir rodar os módulos manualmente:
   ```bash
   PYTHONPATH=./edge:./cloud pytest tests/ -v -s
   ```
+---
+
+## 🟩 Backend local NVIDIA Cosmos3 (sem nuvem)
+
+O Edge Agent aceita dois backends de inferência, escolhidos por `GAUGE_BACKEND`:
+
+| Backend | Onde roda | Imagem sai da planta? | Custo de IA |
+| :--- | :--- | :--- | :--- |
+| `gemini` (padrão) | Vertex AI (Gemini 3.6 Flash) | Sim | por token |
+| `cosmos` | NVIDIA Cosmos3 Edge Reasoner (NIM) na GPU local | **Não** | zero (hardware próprio) |
+
+O backend `cosmos` ([edge/cosmos_backend.py](edge/cosmos_backend.py)) funciona assim: o **Cosmos3 localiza o mostrador**, e uma **medição geométrica da agulha** lê o valor. A ponta fina é o lado mais longo; o contrapeso é ignorado. O ângulo é convertido pelas marcas impressas do mostrador (`GAUGE_CALIB`). A saída usa o **mesmo esquema `GaugeReading`** do Gemini, então Pub/Sub, Firestore, BigQuery e o dashboard não mudam.
+
+```bash
+# NIM do Cosmos3 rodando em http://localhost:8000 (ver projeto manometro-iot/setup)
+GAUGE_BACKEND=cosmos COSMOS_URL=http://localhost:8000 python edge/app.py
+```
+
+### Comparação entre backends
+```bash
+python bench/compare.py <pasta_fotos> --backends cosmos,gemini
+```
+Usa o mesmo `process_inference` do agente, sem câmera e sem Pub/Sub, e grava `bench/results.csv` com erro, confiança e latência. As referências ficam em `bench/reference_visual.csv`.
+
+Resultado do Cosmos3 em 13 fotos (RTX 4090, referência visual de ±0,2 bar): **MAE de 0,09 bar** no geral, **0,13 bar** com pressão e erro máximo de 0,27 bar, com **cerca de 0,4 s por leitura**.
