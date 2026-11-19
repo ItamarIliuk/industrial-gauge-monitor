@@ -75,3 +75,7 @@ gateway/data/
 # PlatformIO (build do firmware)
 firmware/**/.pio/
 firmware/**/.vscode/
+
+# Patch local de seleção de perfil do NIM (não distribuir)
+setup/**/nim-patch/
+criteria*.py
