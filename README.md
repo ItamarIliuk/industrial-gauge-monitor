@@ -100,7 +100,7 @@ O Edge Agent aceita dois backends de inferência, escolhidos por `GAUGE_BACKEND`
 O backend `cosmos` ([edge/cosmos_backend.py](edge/cosmos_backend.py)) funciona assim: o **Cosmos3 localiza o mostrador**, e uma **medição geométrica da agulha** lê o valor. A ponta fina é o lado mais longo; o contrapeso é ignorado. O ângulo é convertido pelas marcas impressas do mostrador (`GAUGE_CALIB`). A saída usa o **mesmo esquema `GaugeReading`** do Gemini, então Pub/Sub, Firestore, BigQuery e o dashboard não mudam.
 
 ```bash
-# NIM do Cosmos3 rodando em http://localhost:8000 (ver projeto manometro-iot/setup)
+# NIM do Cosmos3 rodando em http://localhost:8000 (como subir: setup/cosmos3/README.md)
 GAUGE_BACKEND=cosmos COSMOS_URL=http://localhost:8000 python edge/app.py
 ```
 
