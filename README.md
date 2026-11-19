@@ -1,3 +1,10 @@
+<p align="center">
+  <img src="docs/img/igm-logo.png" alt="Logo do Industrial Gauge Monitor (IGM)" width="160">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/img/nvidia-inception-program-badge-rgb-for-screen.svg" alt="NVIDIA Inception Program" width="140">
+</p>
+<p align="center"><sub>O LABRIOT é membro do NVIDIA Inception program.</sub></p>
+
 # Industrial Gauge Monitor
 
 Sistema IoT de visão computacional na borda para monitoramento de manômetros industriais.
@@ -144,6 +151,9 @@ cd firmware/esp32s3-cam
 pio run -t upload && pio device monitor
 ```
 1. Na primeira vez, a placa abre o Wi-Fi **`GaugeCam-XXXX`**. Conecte nele, abra `http://192.168.4.1` e informe: rede Wi-Fi, URL do gateway (`http://IP-da-workstation:8090`), device_id, token, intervalo e resolução.
-2. Para reconfigurar depois, segure **BOOT** durante o reset.
+2. Para reconfigurar depois, com a placa ligada, segure **BOOT** por 3 s (não segure durante o reset: isso entra no modo de gravação).
 3. LED: 🟢 leitura ok · 🟠 alerta de visibilidade · 🔴 erro · 🔵 configurando.
 4. Com o manômetro em patamares conhecidos, calibre remotamente com `POST /v1/calibrate/{id}?bar=...`.
+
+---
+<sub>© 2026 NVIDIA, the NVIDIA logo, NVIDIA Cosmos, NVIDIA GeForce RTX, NVIDIA Inception, NVIDIA Jetson and NVIDIA NIM are trademarks and/or registered trademarks of NVIDIA Corporation in the U.S. and other countries.</sub>

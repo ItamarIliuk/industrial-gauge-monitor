@@ -126,3 +126,6 @@ na certificação, porque a parte que gera o número é simples de validar.
 3. **ESP32:** calibrar em vários pontos, adicionar iluminação dedicada e validar em patamares.
 4. **Mais manômetros:** testar outros modelos e escalas, e várias câmeras por gateway.
 5. **Piloto em planta** com parceiro industrial.
+
+---
+<sub>O LABRIOT é membro do NVIDIA Inception program. © 2026 NVIDIA, the NVIDIA logo, NVIDIA Cosmos, NVIDIA GeForce RTX, NVIDIA Inception, NVIDIA Jetson and NVIDIA NIM are trademarks and/or registered trademarks of NVIDIA Corporation in the U.S. and other countries.</sub>
