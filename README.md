@@ -4,6 +4,11 @@
   <img src="docs/img/nvidia-inception-program-badge-rgb-for-screen.svg" alt="NVIDIA Inception Program" width="140">
 </p>
 <p align="center"><sub>O LABRIOT é membro do NVIDIA Inception program.</sub></p>
+<p align="center">
+  <a href="https://github.com/ItamarIliuk/industrial-gauge-monitor/actions/workflows/tests.yml"><img src="https://github.com/ItamarIliuk/industrial-gauge-monitor/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
+</p>
+<p align="center">🇧🇷 Português · <a href="README.en.md">🇺🇸 English</a></p>
 
 # Industrial Gauge Monitor
 
@@ -31,69 +36,18 @@ Tabelas, arquitetura e lições aprendidas em **[docs/resultados.md](docs/result
 - **UI**: Dashboard SCADA construído com Streamlit.
 - **Infra**: Scripts Terraform/gcloud para provisionamento de recursos GCP.
 
-## 🚀 Comandos para Execução
+## ⚡ Quick start
 
-Você pode executar a aplicação utilizando o **PowerShell** (no Windows) ou o **Makefile** (no Linux/macOS/Git Bash).
+```bash
+git clone https://github.com/ItamarIliuk/industrial-gauge-monitor && cd industrial-gauge-monitor
+python -m venv .venv && . .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -r edge/requirements.txt -r cloud/requirements.txt -r gateway/requirements.txt pytest httpx
+PYTHONPATH=./edge:./cloud pytest tests -q                 # testes sem GPU e sem nuvem
+```
 
----
-
-### 1. 🟢 Via PowerShell (`run_project.ps1`) - Recomendado para Windows
-
-| Comando | Descrição |
-| :--- | :--- |
-| `.\run_project.ps1 setup` | Cria o ambiente virtual (`.venv`), instala dependências e executa o setup da infraestrutura GCP. |
-| `.\run_project.ps1 test` | Executa a suíte de testes unitários e de integração com `pytest`. |
-| `.\run_project.ps1 dev-cloud` | Inicia o serviço Cloud Router (Flask) localmente na porta 8080. |
-| `.\run_project.ps1 dev-ui` | Inicia a interface gráfica Dashboard SCADA no navegador via `Streamlit`. |
-| `.\run_project.ps1 dev-edge` | Inicia o Agente de Borda (Edge Agent) para captura e processamento por câmera. |
-| `.\run_project.ps1 query-bq` | Consulta as últimas leituras de telemetria armazenadas no Google BigQuery. |
-
----
-
-### 2. 🐧 Via Makefile - Recomendado para Linux / macOS / Bash
-
-| Comando | Descrição |
-| :--- | :--- |
-| `make setup` | Configura infraestrutura GCP e instala todas as dependências Python. |
-| `make test` | Roda a suíte de testes com `pytest`. |
-| `make dev-cloud` | Inicia o Cloud Router (Flask) na porta 8080. |
-| `make dev-ui` | Inicia o Dashboard SCADA (Streamlit). |
-| `make dev-edge` | Inicia o Agente Edge (Câmera IoT). |
-
----
-
-### 3. 🐍 Execução Direta via Terminal (Python / CLI)
-
-Se preferir rodar os módulos manualmente:
-
-* **Instalar dependências:**
-  ```bash
-  pip install -r edge/requirements.txt -r cloud/requirements.txt -r ui/requirements.txt
-  ```
-
-* **Rodar o Cloud Router (Flask):**
-  ```bash
-  cd cloud
-  FLASK_APP=main.py flask run --port=8080
-  ```
-
-* **Rodar o Dashboard SCADA (Streamlit):**
-  ```bash
-  cd ui
-  streamlit run dashboard_scada.py
-  ```
-
-* **Rodar o Agente Edge (Câmera IoT):**
-  ```bash
-  cd edge
-  python app.py
-  ```
-
-* **Rodar os Testes:**
-  ```bash
-  PYTHONPATH=./edge:./cloud pytest tests/ -v -s
-  ```
----
+- **Cosmos3 local (GPU NVIDIA):** subir o NIM com [setup/cosmos3](setup/cosmos3/README.md), depois `GAUGE_BACKEND=cosmos python edge/app.py`.
+- **Pipeline GCP + dashboard:** `.\run_project.ps1 setup` (Windows) ou `make setup`. Detalhes em [docs/execucao.md](docs/execucao.md).
+un_project.ps1 setup` (Windows) ou `make setup`. Detalhes em [docs/execucao.md](docs/execucao.md).
 
 ## 🟩 Backend local NVIDIA Cosmos3 (sem nuvem)
 
