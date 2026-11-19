@@ -111,7 +111,8 @@ def main():
             ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
             result, dbg = cb.read_gauge(buf.tobytes(), client=client, calib=calib, debug=True)
             dt = time.perf_counter() - t0
-            angles.append(dbg["needle"]["tip_deg"])
+            if dbg["needle"]["tip_deg"] is not None:   # None = manômetro não encontrado
+                angles.append(dbg["needle"]["tip_deg"])
             history.append(result["data_bar"]["valor"])
             smooth = statistics.median(history[-max(1, a.median):])
             cv2.imwrite(os.path.join(ROOT, "debug_captures", "live_frame.jpg"), frame)
@@ -129,7 +130,9 @@ def main():
     finally:
         cap.release()
 
-    if a.calib_point is not None:
+    if a.calib_point is not None and len(angles) < 3:
+        print("Calibração NÃO gravada: manômetro não encontrado em leituras suficientes.")
+    elif a.calib_point is not None:
         # mediana circular simples: desenrola em torno do primeiro ângulo antes de tirar a mediana
         ref = angles[0]
         unwrapped = [ref + ((x - ref + 180) % 360 - 180) for x in angles]

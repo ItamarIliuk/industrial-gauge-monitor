@@ -107,3 +107,22 @@ def test_invalid_backend_rejected(monkeypatch):
     monkeypatch.setattr(app, "GAUGE_BACKEND", "xpto")
     with patch.object(app.pubsub_v1, "PublisherClient"), pytest.raises(EnvironmentError):
         app.GaugeAgent()
+
+
+@pytest.mark.parametrize("bbox", [
+    None,                    # VLM disse que não há manômetro
+    [10, 10, 30, 30],        # minúsculo
+    [0, 400, 1000, 500],     # faixa achatada: não é um mostrador visto de frente
+    [-5, 0, 900, 900],       # fora da faixa 0-1000
+])
+def test_no_reading_without_plausible_dial(bbox):
+    r = cb.read_gauge(jpeg(synthetic_gauge(300)), client=FakeClient(bbox=bbox))
+    assert r["alerta_visibilidade"] is True
+    assert r["confianca_leitura"] < 0.5           # Cloud Router descarta como LOW_CONFIDENCE
+    assert r["data_bar"]["valor"] == 0.0
+
+
+def test_plausible_bbox_accepts_real_dial_boxes():
+    # caixas reais devolvidas pelo Cosmos3 nas fotos de bancada
+    assert cb.plausible_bbox([366, 253, 606, 795], 1024, 461)
+    assert cb.plausible_bbox([253, 115, 816, 862], 640, 480)   # webcam aproximada

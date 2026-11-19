@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pyyaml
+opencv-python-headless
+numpy
+pydantic
+# backend gemini / PUBLISH_MODE=pubsub (opcionais)
+google-genai
+google-cloud-pubsub

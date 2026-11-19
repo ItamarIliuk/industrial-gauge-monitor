@@ -36,7 +36,25 @@ BAR_TO_PSI = 14.5038
 DEFAULT_CALIB = "225:0,271.5:3.45,346.4:8,411.8:12,477:16"
 
 PROMPT_BBOX = ("Locate the round dial face of the analog pressure gauge in this image. "
-               'Return ONLY JSON: {"bbox_2d": [x1, y1, x2, y2]}')
+               'Return ONLY JSON: {"bbox_2d": [x1, y1, x2, y2]}. '
+               'If no analog pressure gauge is clearly visible, return {"bbox_2d": null}.')
+
+# sanidade do bbox: um mostrador visto de frente é quase quadrado e não é minúsculo
+BBOX_MIN_ASPECT, BBOX_MAX_ASPECT = 0.6, 1.6
+BBOX_MIN_FRACTION = 0.08   # lado mínimo em relação ao menor lado da imagem
+
+
+def plausible_bbox(bbox, width, height):
+    """Valida o bbox normalizado (0-1000) devolvido pelo VLM contra a geometria de um mostrador."""
+    if not bbox:
+        return False
+    x1, y1, x2, y2 = bbox
+    if min(bbox) < 0 or max(bbox) > 1000:
+        return False
+    bw, bh = abs(x2 - x1) / 1000 * width, abs(y2 - y1) / 1000 * height
+    if min(bw, bh) < BBOX_MIN_FRACTION * min(width, height):
+        return False
+    return BBOX_MIN_ASPECT <= bw / max(bh, 1e-6) <= BBOX_MAX_ASPECT
 
 
 # ---------------------------------------------------------------- calibração
@@ -63,14 +81,20 @@ def deg_to_bar(deg, pts):
 
 
 # ---------------------------------------------------------------- geometria
+DARK_REL = float(os.getenv("GAUGE_DARK_REL", "0.45"))   # agulha = mais escura que 45% do brilho do mostrador
+
+
 def _dark_mask(gray):
-    # a agulha está entre os pixels mais escuros; o teto absoluto evita que, num mostrador
-    # quase todo branco (percentil alto), o fundo inteiro vire "escuro"
-    thr = np.percentile(gray, 12)
-    return gray < min(max(thr, 40) + 25, 120)
+    # Limiar RELATIVO ao brilho da face do mostrador (disco interno), e não absoluto:
+    # câmeras baratas (OV2640) entregam o mostrador cinza/escuro, e um limiar fixo
+    # passava a marcar o fundo inteiro como "agulha". Validado em frames do ESP32 e nas fotos de bancada.
+    h, w = gray.shape
+    yy, xx = np.ogrid[:h, :w]
+    disk = (xx - w / 2) ** 2 + (yy - h / 2) ** 2 < (0.40 * w) ** 2
+    return gray < np.median(gray[disk]) * DARK_REL
 
 
-def _run_lengths(dark, cx, cy, R, step_deg=1.0, r0=0.10, gap=3):
+def _run_lengths(dark, cx, cy, R, step_deg=1.0, r0=0.10, gap=6):
     angles = np.arange(0, 360, step_deg)
     runs = np.zeros_like(angles)
     h, w = dark.shape
@@ -199,8 +223,24 @@ def read_gauge(image_bytes, client=None, calib=None, zero_band=None, max_bar=Non
         raise RuntimeError("Imagem inválida para o backend Cosmos.")
 
     bbox = client.locate_dial(bgr)
-    located = bbox is not None
-    dial, box = crop_from_bbox(bgr, bbox) if located else (bgr, None)
+    h, w = bgr.shape[:2]
+    if not plausible_bbox(bbox, w, h):
+        # Sem manômetro na cena: NÃO inventa leitura. Confiança baixa faz o Cloud Router
+        # registrar LOW_CONFIDENCE e o alerta de visibilidade sinaliza a câmera desalinhada/obstruída.
+        result = {
+            "raciocinio_geometrico": ("Cosmos3 não encontrou um manômetro válido na imagem "
+                                      f"(bbox={bbox}). Verifique enquadramento, obstrução ou iluminação."),
+            "data_bar": {"valor": 0.0, "unidade": "bar"},
+            "data_psi": {"valor": 0.0, "unidade": "psi"},
+            "confianca_leitura": 0.2,
+            "alerta_visibilidade": True,
+        }
+        if debug:
+            return result, {"box": None, "dial": bgr,
+                            "needle": {"tip_deg": None, "tail_deg": None, "tip_len": 0.0, "tail_len": 0.0}}
+        return result
+    located = True
+    dial, box = crop_from_bbox(bgr, bbox)
 
     n = needle_angle(dial)
     bar = max(0.0, deg_to_bar(n["tip_deg"], calib_pts))
