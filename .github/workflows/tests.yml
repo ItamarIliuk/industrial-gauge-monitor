@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r edge/requirements.txt -r cloud/requirements.txt -r gateway/requirements.txt pytest httpx
-      - name: Run tests (sem GPU e sem nuvem: backends e GCP simulados)
+      - name: "Run tests (sem GPU e sem nuvem; backends e GCP simulados)"
         env:
           PYTHONPATH: ./edge:./cloud
         run: pytest tests -q
