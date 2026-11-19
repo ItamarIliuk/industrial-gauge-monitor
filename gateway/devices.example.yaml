@@ -1,0 +1,15 @@
+# Copie para gateway/devices.yaml (não versionado) e gere tokens com:
+#   python gateway/new_device.py <device_id>
+# O token em si fica só no dispositivo (NVS do ESP32); aqui guardamos apenas o SHA-256.
+devices:
+  manometro-caldeira-01:
+    token_sha256: "<sha256 do token>"
+    backend: cosmos          # cosmos (NIM local) | gemini (Vertex AI)
+    location: "Caldeira 1 - linha de vapor"
+    median: 5                # janela da mediana móvel
+    # calib opcional fixa (graus:bar). Se houver calibração gravada via /v1/calibrate, ela tem prioridade.
+    # calib: "228:0,252:2,281:4,347:8"
+  manometro-compressor-02:
+    token_sha256: "<sha256 do token>"
+    backend: gemini
+    location: "Sala de compressores"

@@ -3,3 +3,4 @@ google-genai
 google-cloud-pubsub
 python-dotenv
 numpy
+pydantic

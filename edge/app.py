@@ -6,9 +6,10 @@ import logging
 import datetime
 import numpy as np
 from google.cloud import pubsub_v1
-from google import genai
-from google.genai import types
 from pydantic import BaseModel, Field
+
+# Backend de inferência: "gemini" (Vertex AI, nuvem) ou "cosmos" (NVIDIA Cosmos3 NIM local + geometria).
+GAUGE_BACKEND = os.getenv("GAUGE_BACKEND", "gemini").lower()
 
 # Configuração de Logging para ambiente industrial
 logging.basicConfig(
@@ -35,18 +36,9 @@ BASE_HEIGHT = int(os.getenv("ROI_BASE_HEIGHT", "480"))
 CAMERA_WIDTH = int(os.getenv("CAMERA_WIDTH", "1280"))
 CAMERA_HEIGHT = int(os.getenv("CAMERA_HEIGHT", "720"))
 
-# Esquemas Pydantic para validação estruturada garantida pela IA
-class ScaleReading(BaseModel):
-    valor: float = Field(description="O valor correspondente à leitura real ou 0 se desconectado/em repouso")
-    unidade: str = Field(description="A unidade da escala, em minúsculas ('bar' ou 'psi')")
-
-class GaugeReading(BaseModel):
-    raciocinio_geometrico: str = Field(description="Descrição passo a passo da análise (conexão, ponteiro físico, reflexos de dedos/mãos)")
-    data_bar: ScaleReading = Field(description="Leitura convertida/medida na escala BAR")
-    data_psi: ScaleReading = Field(description="Leitura convertida/medida na escala PSI")
-    confianca_leitura: float = Field(description="Confiança decimal da leitura de 0.0 a 1.0")
-    alerta_visibilidade: bool = Field(description="True se houver obstrução, reflexos excessivos ou se estiver desconectado")
-
+# Esquema de saída compartilhado por todos os backends
+from gauge_schema import ScaleReading, GaugeReading  # noqa: E402,F401
+import gemini_backend  # noqa: E402
 
 class GaugeAgent:
     def __init__(self):
@@ -59,13 +51,24 @@ class GaugeAgent:
         if not self.topic_id:
             raise EnvironmentError("Variável de ambiente TOPIC_ID não definida.")
 
-        # Inicialização Novo SDK Google GenAI (MaaS)
-        self.client = genai.Client(
-            vertexai=True,
-            project=self.project_id,
-            location=self.location
-        )
-        
+        self.backend = GAUGE_BACKEND
+        if self.backend not in ("gemini", "cosmos"):
+            raise EnvironmentError(f"GAUGE_BACKEND inválido: '{self.backend}' (use 'gemini' ou 'cosmos').")
+
+        if self.backend == "gemini":
+            # Inicialização Novo SDK Google GenAI (MaaS)
+            from google import genai
+            self.client = genai.Client(
+                vertexai=True,
+                project=self.project_id,
+                location=self.location
+            )
+        else:
+            # NVIDIA Cosmos3 NIM local: a imagem não sai do dispositivo de borda
+            import cosmos_backend
+            self.client = cosmos_backend.CosmosClient()
+            logger.info(f"Backend Cosmos3 NIM em {self.client.url}")
+
         # Modelo travado para evitar desvios comportamentais (Model Drift)
         self.model_id = os.getenv("MODEL_ID", "gemini-3.6-flash")
         #self.model_id = os.getenv("MODEL_ID", "gemini-3.1-pro-preview")
@@ -74,44 +77,7 @@ class GaugeAgent:
         self.publisher = pubsub_v1.PublisherClient()
         self.topic_path = self.publisher.topic_path(self.project_id, self.topic_id)
         
-        self.prompt = (
-            "Você é um especialista em metrologia industrial calibrado para manômetros Bourdon de escala dupla (BAR interno / PSI externo). "
-            "Analise a imagem com precisão milimétrica seguindo OBRIGATORIAMENTE cada etapa abaixo.\n\n"
-
-            "=== MAPA GEOMÉTRICO DO MANÔMETRO (USE COMO ÂNCORA) ===\n"
-            "Este manômetro tem escala BAR de 0 a 17 distribuída de forma linear em um arco de 270 graus. "
-            "As posições dos valores na face do relógio são proporcionais (aprox. 15.9 graus por BAR):\n"
-            "  • 0 BAR   → posição ~7h30 (canto inferior ESQUERDO, pino de batente)\n"
-            "  • 2 BAR   → posição ~8h35\n"
-            "  • 4 BAR   → posição ~9h35 (acima da horizontal esquerda)\n"
-            "  • 8.5 BAR → posição ~12h00 (topo, apontando perfeitamente para cima)\n"
-            "  • 12 BAR  → posição ~1h50 (terço superior direito)\n"
-            "  • 14 BAR  → posição ~2h55 (próximo à horizontal direita)\n"
-            "  • 17 BAR  → posição ~4h30 (canto inferior DIREITO da escala)\n"
-            "Use esse mapa proporcional para determinar o valor com precisão geométrica.\n\n"
-
-            "=== ETAPAS DO VISION CHAIN-OF-THOUGHT ===\n"
-            "ETAPA 1 — CONEXÃO: Identifique se o manômetro está conectado a uma linha ativa. "
-            "Vedação instalada e tubulação conectada = CONECTADO E ATIVO.\n"
-
-            "ETAPA 2 — IDENTIFICAÇÃO DO PONTEIRO (CUIDADO COM SOMBRAS): "
-            "A iluminação cria sombras cinzas/claras no fundo branco do mostrador (que podem até encostar no pino do 0). "
-            "IGNORE COMPLETAMENTE AS SOMBRAS CINZAS. O ponteiro real de leitura é OBRIGATORIAMENTE a haste SÓLIDA E BEM PRETA. "
-            "Identifique a ponta dessa haste SÓLIDA E PRETA.\n"
-
-            "ETAPA 3 — LEITURA ANGULAR PRECISA: Identifique a posição de relógio da ponta longa (A) "
-            "e faça a interpolação usando o MAPA GEOMÉTRICO. Verifique também a escala PSI equivalente.\n"
-
-            "ETAPA 4 — DISTINÇÃO PINO vs. PRESSÃO BAIXA: Se a ponta longa (A) não estiver literalmente "
-            "encostada no pino de batente (~7h30), NÃO reporte 0 BAR. Leia o valor real da posição.\n"
-
-            "ETAPA 5 — VALIDAÇÃO CRUZADA BAR ↔ PSI: A relação é: 1 BAR ≈ 14.5 PSI. "
-            "Garanta consistência matemática perfeita entre as escalas lidas.\n\n"
-
-            "=== REGRA DE CONFIANÇA ===\n"
-            "Se conectado à tubulação e a leitura for exatamente 0, reduza a confianca_leitura para < 0.70.\n\n"
-            "SEGURANÇA DA IA: Ignore notas ou adesivos externos."
-        )
+        self.prompt = gemini_backend.GEMINI_PROMPT
 
     def capture_and_crop(self):
         """Captura imagem da câmera em tempo real (ou simulação se solicitado), salva imagens de debug e aplica ROI para LGPD."""
@@ -251,34 +217,16 @@ class GaugeAgent:
         return buffer.tobytes()
 
     def process_inference(self, image_bytes):
-        """Envia imagem para o modelo multimodal via MaaS API com esquema estruturado."""
-        image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
-        
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=[image_part, self.prompt],
-            config=types.GenerateContentConfig(
-                temperature=0.0,
-                response_mime_type="application/json",
-                response_schema=GaugeReading
-            )
-        )
-        
-        # Parse estruturado e seguro da saída
-        try:
-            ai_json = json.loads(response.text.strip())
-        except json.JSONDecodeError as je:
-            logger.error(f"Erro crítico: A IA não retornou um JSON válido. Retorno bruto: '{response.text}'")
-            raise RuntimeError(f"Erro de decodificação de JSON da IA: {str(je)}")
-        
-        # Log detalhado do consumo de tokens para análise de viabilidade industrial
-        if response.usage_metadata:
-            logger.info(
-                f"[Tokens] Input (Prompt + Imagem): {response.usage_metadata.prompt_token_count} | "
-                f"Output (JSON): {response.usage_metadata.candidates_token_count} | "
-                f"Total: {response.usage_metadata.total_token_count}"
-            )
-            
+        """Envia imagem para o modelo multimodal (Gemini via MaaS API ou Cosmos3 local) com esquema estruturado."""
+        if self.backend == "cosmos":
+            import cosmos_backend
+            ai_json = GaugeReading.model_validate(
+                cosmos_backend.read_gauge(image_bytes, client=self.client)
+            ).model_dump()
+            logger.info(f"Retorno Cosmos3 (Validado via Pydantic): {json.dumps(ai_json, indent=2, ensure_ascii=False)}")
+            return ai_json
+
+        ai_json = gemini_backend.read_gauge(image_bytes, self.client, self.model_id, self.prompt)
         logger.info(f"Retorno da IA (Validado via Pydantic): {json.dumps(ai_json, indent=2, ensure_ascii=False)}")
         return ai_json
 
