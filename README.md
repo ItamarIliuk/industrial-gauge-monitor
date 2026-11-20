@@ -8,7 +8,7 @@
   <a href="https://github.com/ItamarIliuk/industrial-gauge-monitor/actions/workflows/tests.yml"><img src="https://github.com/ItamarIliuk/industrial-gauge-monitor/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
 </p>
-<p align="center">🇧🇷 Português · <a href="README.en.md">🇺🇸 English</a></p>
+<p align="center">🇧🇷 Português · <a href="README.en.md">🇺🇸 English</a> · 🌐 <a href="https://itamariliuk.github.io/igm/">Página do projeto</a></p>
 
 # Industrial Gauge Monitor
 
@@ -47,7 +47,6 @@ PYTHONPATH=./edge:./cloud pytest tests -q                 # testes sem GPU e sem
 
 - **Cosmos3 local (GPU NVIDIA):** subir o NIM com [setup/cosmos3](setup/cosmos3/README.md), depois `GAUGE_BACKEND=cosmos python edge/app.py`.
 - **Pipeline GCP + dashboard:** `.\run_project.ps1 setup` (Windows) ou `make setup`. Detalhes em [docs/execucao.md](docs/execucao.md).
-un_project.ps1 setup` (Windows) ou `make setup`. Detalhes em [docs/execucao.md](docs/execucao.md).
 
 ## 🟩 Backend local NVIDIA Cosmos3 (sem nuvem)
 
