@@ -8,7 +8,7 @@
   <a href="https://github.com/ItamarIliuk/industrial-gauge-monitor/actions/workflows/tests.yml"><img src="https://github.com/ItamarIliuk/industrial-gauge-monitor/actions/workflows/tests.yml/badge.svg" alt="tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
 </p>
-<p align="center"><a href="README.md">🇧🇷 Português</a> · 🇺🇸 English</p>
+<p align="center"><a href="README.md">🇧🇷 Português</a> · 🇺🇸 English · 🌐 <a href="https://itamariliuk.github.io/igm/">Project page</a></p>
 
 # Industrial Gauge Monitor (IGM)
 
